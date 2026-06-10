@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Precision Alerts | Live Crypto & Gold Price Monitor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+:root{
+  --bg:#f0f4fa;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;
+  --primary:#1e5a9c;--primary-dark:#0f3b66;--primary-light:#eef4ff;
+  --success:#059669;--danger:#dc2626;--warning:#d97706;
+  --text:#1e293b;--text2:#475569;--text3:#94a3b8;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,.09);
+  --r-xl:1.25rem;--r-lg:1rem;--r-md:.75rem;
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#263548;--border:#334155;
+  --primary:#3b82f6;--primary-dark:#1d4ed8;--primary-light:#1e3a5f;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);
+  --shadow-md:0 4px 16px rgba(0,0,0,.4);
+}
+
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);padding:1rem;min-height:100vh;transition:background .25s,color .25s;}
+.dashboard{max-width:620px;margin:0 auto;}
+
+/* ── In-flow notification (replaces fixed toast) ── */
+#notifBar{
+  border-radius:var(--r-lg);padding:0;margin-bottom:0;
+  max-height:0;overflow:hidden;
+  transition:max-height .3s ease,margin .3s ease,padding .3s ease;
+  font-size:.84rem;font-weight:500;
+}
+#notifBar.show{max-height:60px;margin-bottom:1rem;padding:.75rem 1rem;}
+#notifBar.success{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}
+#notifBar.warning{background:#fef9c3;color:#854d0e;border:1px solid #fde047;}
+#notifBar.error  {background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+#notifBar.info   {background:var(--primary-light);color:var(--primary-dark);border:1px solid #bfdbfe;}
+[data-theme="dark"] #notifBar.success{background:#14532d;color:#bbf7d0;border-color:#166534;}
+[data-theme="dark"] #notifBar.warning{background:#422006;color:#fde68a;border-color:#854d0e;}
+[data-theme="dark"] #notifBar.error  {background:#450a0a;color:#fca5a5;border-color:#991b1b;}
+[data-theme="dark"] #notifBar.info   {background:#1e3a5f;color:#93c5fd;border-color:#1d4ed8;}
+.notif-inner{display:flex;align-items:center;gap:8px;}
+
+/* ── Header ── */
+.header-card{
+  background:var(--surface);border-radius:var(--r-xl);
+  padding:1rem 1.25rem;margin-bottom:1.25rem;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:var(--shadow);border:1px solid var(--border);gap:.5rem;flex-wrap:wrap;
+}
+.logo{display:flex;align-items:center;gap:10px;}
+.live-pulse{width:10px;height:10px;background:var(--success);border-radius:50%;animation:pulse 1.5s ease infinite;flex-shrink:0;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(5,150,105,.6);}70%{box-shadow:0 0 0 7px rgba(5,150,105,0);}100%{box-shadow:0 0 0 0 rgba(5,150,105,0);}}
+h1{font-size:1.15rem;font-weight:700;letter-spacing:-.3px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.header-right{display:flex;align-items:center;gap:.5rem;}
+.status-badge{font-size:.68rem;font-weight:500;background:var(--primary-light);color:var(--primary);padding:.3rem .9rem;border-radius:2rem;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+.status-badge.error{background:#fff0f0;color:var(--danger);}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8rem;color:var(--text2);transition:background .15s,color .15s;flex-shrink:0;}
+.icon-btn:hover{background:var(--primary-light);color:var(--primary);}
+
+/* ── Ticker ── */
+.ticker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;}
+.ticker-header span{font-size:.72rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;}
+.ticker-grid{
+  background:var(--surface);border-radius:var(--r-lg);padding:.75rem;
+  margin-bottom:1.5rem;display:flex;gap:.6rem;overflow-x:auto;
+  border:1px solid var(--border);box-shadow:var(--shadow);scrollbar-width:none;
+}
+.ticker-grid::-webkit-scrollbar{display:none;}
+.ticker-item{
+  min-width:90px;text-align:center;background:var(--surface2);
+  padding:.55rem .4rem;border-radius:var(--r-md);flex-shrink:0;
+  transition:transform .15s,box-shadow .15s;position:relative;cursor:default;
+  border:1px solid var(--border);
+}
+.ticker-item:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.ticker-item .pin-btn{
+  position:absolute;top:3px;right:4px;font-size:.5rem;opacity:0;
+  color:var(--text3);transition:opacity .15s;background:none;border:none;cursor:pointer;padding:0;
+}
+.ticker-item:hover .pin-btn{opacity:1;}
+.ticker-item.pinned .pin-btn{opacity:.7;color:var(--primary);}
+.ticker-symbol{font-size:.67rem;font-weight:600;color:var(--text2);letter-spacing:.4px;margin-bottom:2px;}
+.ticker-price{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.92rem;color:var(--text);}
+.ticker-change{font-size:.63rem;font-weight:600;padding:.1rem .32rem;border-radius:20px;display:inline-block;margin-top:2px;}
+.up  {background:#e6f7ec;color:#059669;}
+.down{background:#fee9e6;color:#dc2626;}
+.flat{background:var(--surface2);color:var(--text3);border:1px solid var(--border);}
+[data-theme="dark"] .up  {background:#052e16;color:#4ade80;}
+[data-theme="dark"] .down{background:#450a0a;color:#f87171;}
+.sparkline{display:block;margin:.3rem auto 0;opacity:.8;}
+
+/* ── Controls bar ── */
+.controls-bar{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;}
+.search-input{
+  flex:1;min-width:120px;padding:.45rem .75rem;border:1.5px solid var(--border);
+  border-radius:var(--r-md);font-size:.8rem;background:var(--surface);color:var(--text);
+  font-family:'Inter',sans-serif;
+}
+.search-input:focus{outline:none;border-color:var(--primary);}
+.ctrl-btn{
+  padding:.45rem .85rem;border:1.5px solid var(--border);border-radius:var(--r-md);
+  background:var(--surface);color:var(--text2);font-size:.75rem;font-weight:500;
+  cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;transition:all .15s;
+}
+.ctrl-btn:hover{border-color:var(--primary);color:var(--primary);}
+.ctrl-btn.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+
+/* ── Form card ── */
+.form-card{background:var(--surface);border-radius:var(--r-xl);padding:1.25rem;margin-bottom:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow);}
+.form-title{display:flex;align-items:center;gap:8px;margin-bottom:1rem;font-size:.82rem;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:.4px;}
+.form-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:.75rem;}
+.input-field{flex:1;min-width:120px;}
+.input-field label{display:block;font-size:.67rem;font-weight:500;color:var(--text3);margin-bottom:.28rem;text-transform:uppercase;letter-spacing:.3px;}
+input,select{
+  width:100%;padding:.68rem .85rem;border:1.5px solid var(--border);border-radius:var(--r-md);
+  font-family:'Inter',sans-serif;font-size:.87rem;background:var(--surface);color:var(--text);
+  transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;
+}
+input:focus,select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(30,90,156,.1);}
+[data-theme="dark"] input,[data-theme="dark"] select{background:var(--surface2);border-color:var(--border);}
+.input-hint{font-size:.65rem;color:var(--text3);margin-top:.25rem;}
+.pct-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;}
+.pct-toggle button{
+  flex:1;padding:.68rem .5rem;border:none;background:var(--surface);color:var(--text2);
+  font-size:.8rem;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;
+}
+.pct-toggle button.active{background:var(--primary);color:#fff;}
+.btn-add{
+  width:100%;background:linear-gradient(110deg,var(--primary),var(--primary-dark));
+  border:none;padding:.85rem;border-radius:2rem;color:#fff;
+  font-weight:600;font-size:.88rem;display:flex;align-items:center;
+  justify-content:center;gap:8px;cursor:pointer;
+  transition:opacity .15s,transform .1s,box-shadow .15s;
+  box-shadow:0 4px 12px rgba(30,90,156,.3);font-family:'Inter',sans-serif;
+}
+.btn-add:hover{opacity:.92;box-shadow:0 6px 18px rgba(30,90,156,.35);}
+.btn-add:active{transform:scale(.97);}
+.form-hint{font-size:.68rem;text-align:center;margin-top:.6rem;color:var(--text3);display:flex;align-items:center;justify-content:center;gap:5px;}
+
+/* ── Sound selector ── */
+.sound-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;}
+.sound-btn{
+  flex:1;min-width:60px;padding:.4rem .3rem;border:1.5px solid var(--border);border-radius:var(--r-md);
+  background:var(--surface);color:var(--text2);font-size:.7rem;font-weight:500;
+  cursor:pointer;font-family:'Inter',sans-serif;text-align:center;transition:all .15s;
+}
+.sound-btn:hover{border-color:var(--primary);color:var(--primary);}
+.sound-btn.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);font-weight:600;}
+.sound-label{font-size:.67rem;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:.3rem;}
+
+/* ── Alert list ── */
+.section-header{display:flex;justify-content:space-between;align-items:center;margin:0 0 .85rem 0;}
+.section-header h3{font-size:.88rem;font-weight:600;display:flex;align-items:center;gap:6px;}
+.alert-count{background:var(--primary-light);padding:.2rem .75rem;border-radius:30px;font-size:.7rem;font-weight:600;color:var(--primary);}
+
+/* pair group */
+.pair-group{margin-bottom:1rem;}
+.pair-group-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.4rem .8rem;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-md);margin-bottom:.4rem;cursor:pointer;
+}
+.pair-group-title{font-weight:700;font-size:.82rem;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:8px;}
+.pair-group-price{font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--text2);}
+
+.alert-card{
+  background:var(--surface);border-radius:var(--r-lg);padding:.9rem 1rem .7rem;
+  margin-bottom:.5rem;border:1px solid var(--border);border-left:4px solid var(--primary);
+  box-shadow:var(--shadow);transition:box-shadow .2s;
+}
+.alert-card:hover{box-shadow:var(--shadow-md);}
+.alert-card.triggered{border-left-color:var(--danger);background:rgba(220,38,38,.03);}
+.alert-card.triggered .live-price-large{color:var(--danger);}
+.alert-card.snoozed{border-left-color:var(--warning);opacity:.75;}
+
+.alert-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:5px;}
+.trigger-badge{font-size:.63rem;font-weight:600;padding:.2rem .6rem;border-radius:30px;background:#eef2ff;color:var(--primary-dark);}
+.trigger-badge.hit{background:#ffe6e5;color:#b91c1c;}
+.trigger-badge.snoozed{background:#fff7ed;color:#9a3412;}
+
+.price-row{display:flex;align-items:baseline;gap:10px;margin:4px 0;flex-wrap:wrap;}
+.live-price-large{font-family:'JetBrains Mono',monospace;font-size:1.35rem;font-weight:700;color:var(--text);}
+.target-chip{background:var(--surface2);border:1px solid var(--border);padding:.18rem .7rem;border-radius:30px;font-size:.73rem;font-weight:500;color:var(--text2);}
+
+/* progress bar */
+.progress-wrap{margin:6px 0 2px;display:flex;align-items:center;gap:8px;}
+.progress-bar-bg{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-bar-fill{height:100%;border-radius:3px;transition:width .5s ease,background .5s;}
+.progress-label{font-size:.65rem;color:var(--text3);white-space:nowrap;min-width:52px;text-align:right;}
+
+.alert-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.btn-sm{border:none;font-size:.68rem;padding:.3rem .8rem;border-radius:30px;cursor:pointer;font-weight:500;font-family:'Inter',sans-serif;transition:opacity .15s;display:flex;align-items:center;gap:4px;}
+.btn-sm:hover{opacity:.78;}
+.btn-rearm {background:#eef2ff;color:var(--primary);}
+.btn-snooze{background:#fff7ed;color:#9a3412;}
+.btn-delete{background:#fff1f0;color:#dc2626;}
+[data-theme="dark"] .btn-rearm {background:#1e3a5f;color:#93c5fd;}
+[data-theme="dark"] .btn-snooze{background:#431407;color:#fdba74;}
+[data-theme="dark"] .btn-delete{background:#450a0a;color:#f87171;}
+
+.empty-state{text-align:center;padding:2.5rem 1.5rem;background:var(--surface);border-radius:var(--r-lg);color:var(--text3);border:1px dashed var(--border);}
+.empty-state p{margin-top:.6rem;font-size:.82rem;}
+
+/* ── History ── */
+.history-wrapper{background:var(--surface);border-radius:var(--r-xl);margin-top:1.25rem;border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);}
+.history-toggle{padding:.85rem 1.2rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:.85rem;user-select:none;transition:background .15s;}
+.history-toggle:hover{background:var(--surface2);}
+.history-panel{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1);}
+.history-panel.open{max-height:400px;overflow-y:auto;}
+.history-list{padding:.5rem .75rem .75rem;}
+.history-item{display:flex;align-items:center;justify-content:space-between;padding:.45rem .6rem;border-radius:var(--r-md);font-size:.75rem;border-bottom:1px solid var(--border);}
+.history-item:last-child{border-bottom:none;}
+.history-pair{font-weight:700;font-family:'JetBrains Mono',monospace;font-size:.78rem;}
+.history-meta{color:var(--text2);font-size:.7rem;}
+.history-time{color:var(--text3);font-size:.65rem;font-family:'JetBrains Mono',monospace;}
+.history-empty{text-align:center;padding:1.5rem;color:var(--text3);font-size:.8rem;}
+.btn-clear-hist{font-size:.65rem;color:var(--danger);background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;padding:.1rem .4rem;}
+
+/* ── Charts ── */
+.chart-wrapper{background:var(--surface);border-radius:var(--r-xl);margin-top:1.25rem;border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);}
+.chart-toggle{padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;font-size:.88rem;user-select:none;transition:background .15s;}
+.chart-toggle:hover{background:var(--surface2);}
+.chevron{transition:transform .25s;color:var(--primary);font-size:.9rem;}
+.chart-panel{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1);}
+.chart-panel.open{max-height:460px;}
+.tv-container{height:400px;width:100%;}
+
+/* ── Footer ── */
+.footer{text-align:center;margin-top:1.5rem;padding-bottom:1rem;font-size:.68rem;color:var(--text3);}
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <!-- In-flow notification bar -->
+  <div id="notifBar"><div class="notif-inner"><i id="notifIcon" class="fas fa-bell"></i><span id="notifText"></span></div></div>
+
+  <!-- Header -->
+  <div class="header-card">
+    <div class="logo">
+      <div class="live-pulse"></div>
+      <h1><i class="fas fa-chart-line" style="font-size:.95rem"></i> Precision Alerts</h1>
+    </div>
+    <div class="header-right">
+      <div class="status-badge" id="statusBadge"><i class="fas fa-circle" style="font-size:7px;color:#059669"></i> Live</div>
+      <button class="icon-btn" id="btnDark" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
+      <button class="icon-btn" id="btnExport" title="Export alerts"><i class="fas fa-download"></i></button>
+      <label class="icon-btn" title="Import alerts" style="cursor:pointer"><i class="fas fa-upload"></i><input type="file" id="importFile" accept=".json" style="display:none"></label>
+    </div>
+  </div>
+
+  <!-- Ticker -->
+  <div class="ticker-grid" id="tickerGrid"></div>
+
+  <!-- Controls -->
+  <div class="controls-bar">
+    <input class="search-input" id="searchInput" placeholder="🔍 Filter alerts…" autocomplete="off">
+    <button class="ctrl-btn" id="btnGroupPairs"><i class="fas fa-layer-group"></i> Group by pair</button>
+    <button class="ctrl-btn" id="btnShowTriggered"><i class="fas fa-check-circle"></i> Show triggered</button>
+  </div>
+
+  <!-- Create Alert Form -->
+  <div class="form-card">
+    <div class="form-title"><i class="fas fa-bell"></i> Create Price Alert</div>
+    <div class="form-row">
+      <div class="input-field">
+        <label>Pair</label>
+        <input type="text" id="pairInput" placeholder="BTC, ETH, XAUUSD…" value="BTCUSDT" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="input-field">
+        <label>Condition</label>
+        <select id="modeSelect">
+          <option value="touch">Touch / Cross</option>
+          <option value="above">Cross Above ↑</option>
+          <option value="below">Cross Below ↓</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-field">
+        <label>Target</label>
+        <div class="pct-toggle" style="margin-bottom:.3rem;">
+          <button id="btnAbsMode" class="active" onclick="setTargetMode('abs')">$ Price</button>
+          <button id="btnPctMode" onclick="setTargetMode('pct')">% from live</button>
+        </div>
+        <input type="number" id="targetPrice" placeholder="e.g. 67000" step="any" min="0">
+        <div class="input-hint" id="targetHint"></div>
+      </div>
+    </div>
+    <!-- Sound selector -->
+    <div class="sound-label">Alert sound</div>
+    <div class="sound-row" id="soundRow">
+      <button class="sound-btn active" data-sound="alarm" onclick="setSound('alarm')">🚨 Alarm</button>
+      <button class="sound-btn" data-sound="bell" onclick="setSound('bell')">🔔 Bell</button>
+      <button class="sound-btn" data-sound="chime" onclick="setSound('chime')">🎵 Chime</button>
+      <button class="sound-btn" data-sound="silent" onclick="setSound('silent')">🔇 Silent</button>
+    </div>
+    <button class="btn-add" id="btnAdd"><i class="fas fa-plus-circle"></i> Activate Alert</button>
+    <div class="form-hint"><i class="fas fa-volume-up"></i> Sound + visual notification on trigger</div>
+  </div>
+
+  <!-- Alerts List -->
+  <div class="section-header">
+    <h3><i class="fas fa-shield-halved"></i> Active Alerts</h3>
+    <span class="alert-count" id="alertCounter">0 alerts</span>
+  </div>
+  <div id="alertsContainer"></div>
+
+  <!-- History -->
+  <div class="history-wrapper">
+    <div class="history-toggle" id="histToggle">
+      <span><i class="fas fa-clock-rotate-left" style="color:var(--primary)"></i> Trigger History</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="alert-count" id="histCount">0</span>
+        <i class="fas fa-chevron-down chevron" id="chevHist"></i>
+      </div>
+    </div>
+    <div class="history-panel" id="histPanel">
+      <div class="history-list" id="histList"></div>
+    </div>
+  </div>
+
+  <!-- BTC Chart -->
+  <div class="chart-wrapper">
+    <div class="chart-toggle" id="toggleBTC">
+      <span><i class="fab fa-bitcoin" style="color:#f7931a"></i> BTC/USD · Live Chart</span>
+      <i class="fas fa-chevron-down chevron" id="chevBTC"></i>
+    </div>
+    <div class="chart-panel open" id="btcChartPanel">
+      <div class="tv-container" id="tvBTC"></div>
+    </div>
+  </div>
+
+  <!-- XAU Chart -->
+  <div class="chart-wrapper">
+    <div class="chart-toggle" id="toggleXAU">
+      <span><i class="fas fa-crown" style="color:#c9a03d"></i> XAU/USD · Gold Spot</span>
+      <i class="fas fa-chevron-down chevron" id="chevXAU"></i>
+    </div>
+    <div class="chart-panel" id="xauChartPanel">
+      <div class="tv-container" id="tvXAU"></div>
+    </div>
+  </div>
+
+  <div class="footer">Precision Alerts · prices via Binance &amp; PAXG · charts by TradingView</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STORAGE  — safe wrapper with in-memory fallback
+// ═══════════════════════════════════════════════════════
+const store = (() => {
+  let mem = {};
+  let hasLS = false;
+  try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); hasLS = true; } catch(e){}
+  return {
+    get(k, def='[]') {
+      try { return hasLS ? (localStorage.getItem(k) ?? def) : (mem[k] ?? def); }
+      catch(e){ return def; }
+    },
+    set(k,v) {
+      try { if(hasLS) localStorage.setItem(k,v); else mem[k]=v; } catch(e){}
+    }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let alerts  = JSON.parse(store.get('pa_alerts','[]'));
+let history = JSON.parse(store.get('pa_history','[]'));
+let pinnedTickers = JSON.parse(store.get('pa_tickers','["BTCUSDT","ETHUSDT","PAXGUSDT","BNBUSDT","SOLUSDT"]'));
+
+let prices      = {};   // symbol -> { price, change24h, history24h:[] }
+let goldPrice   = null; // null until first real fetch (no hardcoded seed)
+let goldChange24h = 0;
+let audioCtx    = null;
+let notifTimer  = null;
+let targetMode  = 'abs'; // 'abs' | 'pct'
+let soundStyle  = store.get('pa_sound','"alarm"').replace(/"/g,''); // alarm|bell|chime|silent
+let groupByPair = store.get('pa_group','false') === 'true';
+let showTriggered = true;
+let searchQuery = '';
+let snoozeTimers = {};  // alertIdx -> timeoutId
+
+// ═══════════════════════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════════════════════
+function save() {
+  store.set('pa_alerts',  JSON.stringify(alerts));
+  store.set('pa_history', JSON.stringify(history.slice(0,100)));
+  store.set('pa_tickers', JSON.stringify(pinnedTickers));
+  store.set('pa_group',   String(groupByPair));
+  store.set('pa_sound',   JSON.stringify(soundStyle));
+}
+
+// ═══════════════════════════════════════════════════════
+// DARK MODE
+// ═══════════════════════════════════════════════════════
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('btnDark').innerHTML = dark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  store.set('pa_dark', String(dark));
+}
+document.getElementById('btnDark').addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
+});
+applyTheme(store.get('pa_dark','false') === 'true');
+
+// ═══════════════════════════════════════════════════════
+// NOTIFICATION (in-flow, works in iframes)
+// ═══════════════════════════════════════════════════════
+const iconMap = { success:'fa-check-circle', warning:'fa-triangle-exclamation', error:'fa-circle-xmark', info:'fa-bell' };
+function notify(msg, type='info') {
+  const bar  = document.getElementById('notifBar');
+  const icon = document.getElementById('notifIcon');
+  const txt  = document.getElementById('notifText');
+  txt.textContent = msg;
+  icon.className = `fas ${iconMap[type]||'fa-bell'}`;
+  bar.className = '';
+  void bar.offsetWidth;
+  bar.className = `show ${type}`;
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => bar.classList.remove('show'), 4500);
+}
+
+// ═══════════════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════════════
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+document.body.addEventListener('click', initAudio, { once: true });
+
+function tone(freq, type, startT, dur, vol, dest) {
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(dest);
+  osc.type = type; osc.frequency.setValueAtTime(freq, startT);
+  gain.gain.setValueAtTime(vol, startT);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startT + dur);
+  osc.start(startT); osc.stop(startT + dur + .02);
+}
+
+function playSound() {
+  if (soundStyle === 'silent') return;
+  try {
+    initAudio();
+    const comp = audioCtx.createDynamicsCompressor();
+    comp.threshold.setValueAtTime(-6, audioCtx.currentTime);
+    comp.ratio.setValueAtTime(4, audioCtx.currentTime);
+    comp.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (soundStyle === 'alarm') {
+      // 3 sharp rising beeps — loud & clear
+      [[520,'square',.00,.14,1.0],[520,'sine',.00,.14,.6],
+       [780,'square',.17,.14,1.0],[780,'sine',.17,.14,.6],
+       [1040,'square',.34,.18,1.0],[1040,'sine',.34,.18,.6],
+       [1200,'sine',.54,.55,.5]].forEach(([f,t,s,d,v])=>tone(f,t,now+s,d,v,comp));
+    } else if (soundStyle === 'bell') {
+      // Single clean bell
+      [[880,'sine',0,.8,.9],[1760,'sine',0,.5,.4],[440,'sine',0,1,.3]].forEach(([f,t,s,d,v])=>tone(f,t,now+s,d,v,comp));
+    } else if (soundStyle === 'chime') {
+      // Descending soft chime
+      [[1046,'sine',0,.5,.7],[880,'sine',.2,.5,.6],[698,'sine',.4,.6,.5],[523,'sine',.65,.7,.4]].forEach(([f,t,s,d,v])=>tone(f,t,now+s,d,v,comp));
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// FORMAT HELPERS
+// ═══════════════════════════════════════════════════════
+function fmt(val, large=false) {
+  if (val==null||isNaN(val)) return '—';
+  if (val>=100||large) return '$'+val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (val>=1)  return '$'+val.toFixed(4);
+  return '$'+val.toFixed(6);
+}
+function fmtChange(pct) {
+  if (pct==null||isNaN(pct)) return {text:'—',cls:'flat'};
+  return {text:(pct>=0?'+':'')+pct.toFixed(2)+'%', cls:pct>0?'up':pct<0?'down':'flat'};
+}
+function distancePct(live, target) {
+  if (!live||!target) return null;
+  return ((target-live)/live)*100;
+}
+
+// ═══════════════════════════════════════════════════════
+// SPARKLINE SVG  (20-point mini chart)
+// ═══════════════════════════════════════════════════════
+function sparklineSVG(points, positive) {
+  if (!points||points.length<2) return '';
+  const W=70, H=22, pad=2;
+  const mn=Math.min(...points), mx=Math.max(...points);
+  const range=mx-mn||1;
+  const xs=points.map((_,i)=>pad+i*(W-pad*2)/(points.length-1));
+  const ys=points.map(p=>H-pad-(p-mn)/range*(H-pad*2));
+  const d='M'+xs.map((x,i)=>`${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' L');
+  const color=positive?'#059669':'#dc2626';
+  return `<svg class="sparkline" width="${W}" height="${H}"><polyline points="${xs.map((x,i)=>x.toFixed(1)+','+ys[i].toFixed(1)).join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// TICKER RENDER
+// ═══════════════════════════════════════════════════════
+function renderTicker() {
+  const grid = document.getElementById('tickerGrid');
+  grid.innerHTML = pinnedTickers.map(sym => {
+    const d = prices[sym];
+    const price = sym==='PAXGUSDT' ? (d?.price ?? goldPrice) : d?.price;
+    const change = sym==='PAXGUSDT' ? goldChange24h : d?.change24h;
+    const {text, cls} = fmtChange(change);
+    const label = sym==='PAXGUSDT' ? '🏅 XAU' : sym.replace('USDT','');
+    const spark = sparklineSVG(d?.history24h ?? [], (change??0) >= 0);
+    const pinned = pinnedTickers.includes(sym);
+    return `<div class="ticker-item${pinned?' pinned':''}">
+      <button class="pin-btn" onclick="togglePin('${sym}')" title="Unpin"><i class="fas fa-thumbtack"></i></button>
+      <div class="ticker-symbol">${label}</div>
+      <div class="ticker-price">${fmt(price, sym==='PAXGUSDT'||price>500)}</div>
+      <div class="ticker-change ${cls}">${text}</div>
+      ${spark}
+    </div>`;
+  }).join('');
+
+  // Add "+" button for adding custom ticker
+  grid.innerHTML += `<div class="ticker-item" style="min-width:50px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.5;" onclick="addCustomTicker()" title="Add pair to ticker">
+    <i class="fas fa-plus" style="font-size:.9rem"></i><span style="font-size:.6rem">Add</span>
+  </div>`;
+}
+
+function togglePin(sym) {
+  const i = pinnedTickers.indexOf(sym);
+  if (i > -1) { if(pinnedTickers.length>1) pinnedTickers.splice(i,1); }
+  else pinnedTickers.push(sym);
+  save(); renderTicker();
+}
+
+function addCustomTicker() {
+  const sym = prompt('Enter pair symbol (e.g. ADAUSDT, DOTUSDT):','')?.trim().toUpperCase();
+  if (!sym) return;
+  const norm = sym.includes('USD') ? sym : sym+'USDT';
+  if (!pinnedTickers.includes(norm)) { pinnedTickers.push(norm); save(); renderTicker(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// ALERT LOGIC
+// ═══════════════════════════════════════════════════════
+function crosses(mode, oldP, newP, target) {
+  if (mode==='touch')  return (oldP<target&&newP>=target)||(oldP>target&&newP<=target);
+  if (mode==='above')  return oldP<target&&newP>=target;
+  if (mode==='below')  return oldP>target&&newP<=target;
+  return false;
+}
+
+// On-load check: alert already at level when page opens
+function checkAtLevel(mode, price, target) {
+  if (mode==='touch')  return Math.abs(price-target)/target < 0.001;
+  if (mode==='above')  return price>=target;
+  if (mode==='below')  return price<=target;
+  return false;
+}
+
+function fireAlert(alert, hitPrice) {
+  playSound();
+  const entry = { pair:alert.pair, target:alert.target, mode:alert.mode, hitPrice, ts:Date.now() };
+  history.unshift(entry);
+  save();
+  renderHistory();
+  notify(`🚨 ${alert.pair} hit ${fmt(alert.target, alert.pair==='XAUUSD')} (${alert.mode})`, 'warning');
+}
+
+function checkAlerts(symbol, newPrice, oldPrice, firstTick=false) {
+  let changed = false;
+  alerts = alerts.map(a => {
+    if (a.pair!==symbol||a.triggered||a.snoozed) return a;
+    const triggered = firstTick
+      ? checkAtLevel(a.mode, newPrice, a.target)
+      : (oldPrice!=null && oldPrice!==newPrice && crosses(a.mode, oldPrice, newPrice, a.target));
+    if (triggered) {
+      fireAlert(a, newPrice);
+      changed = true;
+      return {...a, triggered:true};
+    }
+    return a;
+  });
+  if (changed) { save(); renderAlerts(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// API FETCH
+// ═══════════════════════════════════════════════════════
+let firstFetch = true;
+
+async function fetchAll() {
+  try {
+    const alertPairs = alerts.map(a=>a.pair).filter(p=>p!=='XAUUSD'&&p.endsWith('USDT'));
+    const allSymbols = [...new Set([...pinnedTickers.filter(s=>s!=='PAXGUSDT'), ...alertPairs,
+      'BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT'])];
+
+    const [cryptoRes, goldRes] = await Promise.all([
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=[${allSymbols.map(s=>`"${s}"`).join(',')}]`),
+      fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=PAXGUSDT')
+    ]);
+
+    if (cryptoRes.ok) {
+      const data = await cryptoRes.json();
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          const sym = item.symbol;
+          const newPrice = parseFloat(item.lastPrice);
+          const change24h = parseFloat(item.priceChangePercent);
+          const old = prices[sym];
+          if (old) checkAlerts(sym, newPrice, old.price, false);
+          else if (firstFetch) checkAlerts(sym, newPrice, null, true);
+          // rolling 20-point sparkline history
+          const hist = old?.history24h ?? [];
+          hist.push(newPrice); if(hist.length>20) hist.shift();
+          prices[sym] = { price:newPrice, change24h, history24h:hist };
+        }
+      }
+    }
+
+    if (goldRes.ok) {
+      const gd = await goldRes.json();
+      const newGold = parseFloat(gd.lastPrice);
+      const gChange = parseFloat(gd.priceChangePercent);
+      if (isFinite(newGold) && newGold > 1000) {
+        const oldGold = goldPrice;
+        if (oldGold != null) checkAlerts('XAUUSD', newGold, oldGold, false);
+        else if (firstFetch) checkAlerts('XAUUSD', newGold, null, true);
+        goldChange24h = gChange;
+        goldPrice = newGold;
+        const ghist = prices['PAXGUSDT']?.history24h ?? [];
+        ghist.push(newGold); if(ghist.length>20) ghist.shift();
+        prices['PAXGUSDT'] = { price:goldPrice, change24h:goldChange24h, history24h:ghist };
+        prices['XAUUSD']   = prices['PAXGUSDT'];
+      }
+    }
+
+    firstFetch = false;
+    renderTicker();
+    renderAlerts();
+
+    const badge = document.getElementById('statusBadge');
+    badge.className = 'status-badge';
+    badge.innerHTML = `<i class="fas fa-circle" style="font-size:7px;color:#059669"></i> ${new Date().toLocaleTimeString()}`;
+  } catch(err) {
+    console.warn(err);
+    const badge = document.getElementById('statusBadge');
+    badge.className = 'status-badge error';
+    badge.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Retrying…`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER ALERTS
+// ═══════════════════════════════════════════════════════
+function buildAlertCard(a, idx) {
+  const livePrice = a.pair==='XAUUSD' ? goldPrice : (prices[a.pair]?.price ?? null);
+  const isLarge   = a.pair==='XAUUSD'||(livePrice&&livePrice>500);
+  const modeLbl   = {touch:'📌 Touch', above:'⬆️ Above', below:'⬇️ Below'}[a.mode];
+  const isHit     = a.triggered, isSnoozed = a.snoozed;
+
+  // Progress bar
+  let barHTML = '';
+  if (livePrice && !isHit) {
+    const d = distancePct(livePrice, a.target);
+    if (d!==null) {
+      const absPct = Math.min(Math.abs(d), 20); // cap at 20%
+      const fillPct = 100 - (absPct/20)*100;    // 100% = at target, 0% = 20%+ away
+      const barColor = fillPct>80?'#dc2626':fillPct>50?'#d97706':'#059669';
+      barHTML = `<div class="progress-wrap">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${fillPct.toFixed(1)}%;background:${barColor}"></div></div>
+        <span class="progress-label">${(d>=0?'+':'')+d.toFixed(2)}%</span>
+      </div>`;
+    }
+  }
+
+  const statusBadge = isHit
+    ? `<span class="trigger-badge hit">✅ TRIGGERED</span>`
+    : isSnoozed
+    ? `<span class="trigger-badge snoozed">⏱ SNOOZED</span>`
+    : `<span class="trigger-badge">${modeLbl}</span>`;
+
+  const actions = `<div class="alert-actions">
+    ${isHit ? `<button class="btn-sm btn-rearm" onclick="rearmAlert(${idx})"><i class="fas fa-rotate-left"></i> Re-arm</button>` : ''}
+    ${isHit && !isSnoozed ? `<button class="btn-sm btn-snooze" onclick="snoozeAlert(${idx},15)"><i class="fas fa-clock"></i> Snooze 15m</button>` : ''}
+    ${isSnoozed ? `<button class="btn-sm btn-rearm" onclick="rearmAlert(${idx})"><i class="fas fa-rotate-left"></i> Re-arm now</button>` : ''}
+    <button class="btn-sm btn-delete" onclick="deleteAlert(${idx})"><i class="fas fa-trash"></i> Remove</button>
+  </div>`;
+
+  return `<div class="alert-card${isHit?' triggered':''}${isSnoozed?' snoozed':''}">
+    <div class="alert-header">
+      ${statusBadge}
+      <span class="target-chip"><i class="fas fa-bullseye" style="opacity:.5"></i> ${fmt(a.target,isLarge)}</span>
+    </div>
+    <div class="price-row">
+      <span class="live-price-large">${fmt(livePrice,isLarge)}</span>
+    </div>
+    ${barHTML}
+    ${actions}
+  </div>`;
+}
+
+function renderAlerts() {
+  const container = document.getElementById('alertsContainer');
+  const counter   = document.getElementById('alertCounter');
+
+  let filtered = alerts.map((a,i)=>({...a,_idx:i}));
+  if (!showTriggered) filtered = filtered.filter(a=>!a.triggered&&!a.snoozed);
+  if (searchQuery)    filtered = filtered.filter(a=>a.pair.includes(searchQuery.toUpperCase()));
+
+  counter.textContent = `${alerts.length} alert${alerts.length!==1?'s':''}`;
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state">
+      <i class="fas fa-bell-slash fa-2x" style="opacity:.3"></i>
+      <p>${alerts.length?'No alerts match your filter':'No alerts yet — create one above'}</p>
+    </div>`;
+    return;
+  }
+
+  if (groupByPair) {
+    const pairs = [...new Set(filtered.map(a=>a.pair))];
+    container.innerHTML = pairs.map(pair => {
+      const group = filtered.filter(a=>a.pair===pair);
+      const lp = pair==='XAUUSD' ? goldPrice : prices[pair]?.price;
+      const isLg = pair==='XAUUSD'||(lp&&lp>500);
+      return `<div class="pair-group">
+        <div class="pair-group-header" onclick="this.nextElementSibling.classList.toggle('open')">
+          <span class="pair-group-title"><i class="fas fa-layer-group" style="opacity:.4;font-size:.75rem"></i> ${pair}</span>
+          <span class="pair-group-price">${fmt(lp,isLg)} · ${group.length} alert${group.length!==1?'s':''}</span>
+        </div>
+        <div class="open">${group.map(a=>buildAlertCard(a,a._idx)).join('')}</div>
+      </div>`;
+    }).join('');
+  } else {
+    container.innerHTML = filtered.map(a=>buildAlertCard(a,a._idx)).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ALERT CRUD
+// ═══════════════════════════════════════════════════════
+function setTargetMode(mode) {
+  targetMode = mode;
+  document.getElementById('btnAbsMode').classList.toggle('active', mode==='abs');
+  document.getElementById('btnPctMode').classList.toggle('active', mode==='pct');
+  document.getElementById('targetPrice').placeholder = mode==='pct' ? 'e.g. +5 or -3 (%)' : 'e.g. 67000';
+  updateTargetHint();
+}
+
+function updateTargetHint() {
+  const hint = document.getElementById('targetHint');
+  if (targetMode !== 'pct') { hint.textContent=''; return; }
+  const pair = document.getElementById('pairInput').value.trim().toUpperCase();
+  const norm = normalizePair(pair);
+  const live = norm==='XAUUSD' ? goldPrice : prices[norm]?.price;
+  const val  = parseFloat(document.getElementById('targetPrice').value);
+  if (live && !isNaN(val)) {
+    const abs = live * (1 + val/100);
+    hint.textContent = `= ${fmt(abs, abs>500||norm==='XAUUSD')}`;
+  } else {
+    hint.textContent = live ? 'Live: ' + fmt(live, live>500) : '';
+  }
+}
+
+function normalizePair(p) {
+  if (!p.includes('USD')) p += 'USDT';
+  if (p==='XAUUSDT'||p==='GOLDUSDT') p='XAUUSD';
+  return p;
+}
+
+function createAlert() {
+  let pair = normalizePair(document.getElementById('pairInput').value.trim().toUpperCase());
+  const rawVal = parseFloat(document.getElementById('targetPrice').value);
+  const mode   = document.getElementById('modeSelect').value;
+
+  if (!pair) { notify('Enter a trading pair','warning'); return; }
+  if (isNaN(rawVal)) { notify('Enter a valid target','warning'); return; }
+
+  let target = rawVal;
+  if (targetMode === 'pct') {
+    const live = pair==='XAUUSD' ? goldPrice : prices[pair]?.price;
+    if (!live) { notify('Live price not loaded yet — try again in a moment','warning'); return; }
+    target = live * (1 + rawVal/100);
+    if (target <= 0) { notify('% offset results in invalid price','warning'); return; }
+  }
+  if (target <= 0) { notify('Target price must be > 0','warning'); return; }
+
+  const dup = alerts.find(a=>a.pair===pair&&Math.abs(a.target-target)<0.0001&&a.mode===mode&&!a.triggered);
+  if (dup) { notify(`Alert already exists for ${pair} @ ${fmt(target)}`,'warning'); return; }
+
+  alerts.push({ pair, target, mode, triggered:false, snoozed:false });
+  save();
+  document.getElementById('targetPrice').value = '';
+  document.getElementById('targetHint').textContent = '';
+  renderAlerts();
+  notify(`Alert set: ${pair} @ ${fmt(target,target>500)} (${mode})`,'success');
+}
+
+function deleteAlert(idx) {
+  const a = alerts[idx];
+  if (snoozeTimers[idx]) { clearTimeout(snoozeTimers[idx]); delete snoozeTimers[idx]; }
+  alerts.splice(idx, 1);
+  // re-index snooze timers
+  const newTimers = {};
+  Object.entries(snoozeTimers).forEach(([k,v]) => { if(+k>idx) newTimers[+k-1]=v; else if(+k<idx) newTimers[+k]=v; });
+  Object.assign(snoozeTimers, newTimers);
+  save(); renderAlerts();
+  notify(`Removed ${a?.pair} alert`,'info');
+}
+
+function rearmAlert(idx) {
+  if (!alerts[idx]) return;
+  if (snoozeTimers[idx]) { clearTimeout(snoozeTimers[idx]); delete snoozeTimers[idx]; }
+  alerts[idx].triggered = false;
+  alerts[idx].snoozed   = false;
+  save(); renderAlerts();
+  notify(`Re-armed ${alerts[idx].pair}`,'success');
+}
+
+function snoozeAlert(idx, minutes) {
+  if (!alerts[idx]) return;
+  alerts[idx].snoozed = true;
+  save(); renderAlerts();
+  notify(`Snoozed ${alerts[idx].pair} for ${minutes}min`,'info');
+  if (snoozeTimers[idx]) clearTimeout(snoozeTimers[idx]);
+  snoozeTimers[idx] = setTimeout(() => {
+    if (alerts[idx]) {
+      alerts[idx].snoozed   = false;
+      alerts[idx].triggered = false;
+      save(); renderAlerts();
+      notify(`⏰ ${alerts[idx].pair} alert re-armed after snooze`,'info');
+    }
+    delete snoozeTimers[idx];
+  }, minutes * 60 * 1000);
+}
+
+function setSound(s) {
+  soundStyle = s;
+  save();
+  document.querySelectorAll('.sound-btn').forEach(b=>b.classList.toggle('active',b.dataset.sound===s));
+  if (s!=='silent') { playSound(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════
+function renderHistory() {
+  const list = document.getElementById('histList');
+  const cnt  = document.getElementById('histCount');
+  cnt.textContent = history.length;
+  if (!history.length) {
+    list.innerHTML = '<div class="history-empty"><i class="fas fa-inbox" style="opacity:.3"></i><br>No triggers yet</div>';
+    return;
+  }
+  list.innerHTML = `<div style="text-align:right;padding:.2rem .4rem .4rem">
+    <button class="btn-clear-hist" onclick="clearHistory()"><i class="fas fa-trash"></i> Clear all</button>
+  </div>` + history.map(h => {
+    const isLarge = h.pair==='XAUUSD'||(h.hitPrice&&h.hitPrice>500);
+    const d = new Date(h.ts);
+    const timeStr = d.toLocaleDateString()+' '+d.toLocaleTimeString();
+    const modeLbl = {touch:'Touch',above:'Above',below:'Below'}[h.mode]||h.mode;
+    return `<div class="history-item">
+      <div><span class="history-pair">${h.pair}</span><br><span class="history-meta">${modeLbl} ${fmt(h.target,isLarge)} · hit @ ${fmt(h.hitPrice,isLarge)}</span></div>
+      <div class="history-time">${timeStr}</div>
+    </div>`;
+  }).join('');
+}
+
+function clearHistory() {
+  history = []; save(); renderHistory();
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════
+document.getElementById('btnExport').addEventListener('click', () => {
+  const data = JSON.stringify({ alerts, history }, null, 2);
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(data);
+  a.download = `precision-alerts-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  notify('Alerts exported ✓','success');
+});
+
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (Array.isArray(parsed.alerts)) {
+        alerts  = parsed.alerts;
+        history = parsed.history || [];
+        save(); renderAlerts(); renderHistory();
+        notify(`Imported ${alerts.length} alerts`,'success');
+      } else throw new Error('Invalid format');
+    } catch(err) { notify('Import failed — invalid JSON file','error'); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+// ═══════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════
+document.getElementById('btnGroupPairs').addEventListener('click', function() {
+  groupByPair = !groupByPair; save();
+  this.classList.toggle('active', groupByPair);
+  renderAlerts();
+});
+
+document.getElementById('btnShowTriggered').addEventListener('click', function() {
+  showTriggered = !showTriggered;
+  this.classList.toggle('active', !showTriggered);
+  this.innerHTML = showTriggered
+    ? '<i class="fas fa-check-circle"></i> Show triggered'
+    : '<i class="fas fa-eye-slash"></i> Hiding triggered';
+  renderAlerts();
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  renderAlerts();
+});
+
+document.getElementById('pairInput').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase();
+  updateTargetHint();
+});
+document.getElementById('targetPrice').addEventListener('input', updateTargetHint);
+document.getElementById('btnAdd').addEventListener('click', createAlert);
+document.getElementById('targetPrice').addEventListener('keydown', e => { if(e.key==='Enter') createAlert(); });
+
+// Init sound btn state
+document.querySelectorAll('.sound-btn').forEach(b => b.classList.toggle('active', b.dataset.sound===soundStyle));
+
+// Init group btn
+if (groupByPair) document.getElementById('btnGroupPairs').classList.add('active');
+
+// ═══════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════
+function loadCharts() {
+  const s = document.createElement('script');
+  s.src = 'https://s3.tradingview.com/tv.js';
+  s.onload = () => {
+    const theme = document.documentElement.getAttribute('data-theme')==='dark' ? 'dark' : 'light';
+    new TradingView.widget({autosize:true,symbol:'BINANCE:BTCUSDT',interval:'15',timezone:'Etc/UTC',theme,style:'1',locale:'en',enable_publishing:false,container_id:'tvBTC',studies:['MASimple@tv-basicstudies']});
+    new TradingView.widget({autosize:true,symbol:'TVC:GOLD',        interval:'15',timezone:'Etc/UTC',theme,style:'1',locale:'en',enable_publishing:false,container_id:'tvXAU',studies:['MASimple@tv-basicstudies']});
+  };
+  document.head.appendChild(s);
+}
+
+// ═══════════════════════════════════════════════════════
+// ACCORDIONS
+// ═══════════════════════════════════════════════════════
+function accordion(toggleId, panelId, chevId, defaultOpen=false) {
+  const toggle = document.getElementById(toggleId);
+  const panel  = document.getElementById(panelId);
+  const chev   = document.getElementById(chevId);
+  if (defaultOpen) { panel.classList.add('open'); chev.style.transform='rotate(180deg)'; }
+  toggle.addEventListener('click', () => {
+    panel.classList.toggle('open');
+    chev.style.transform = panel.classList.contains('open') ? 'rotate(180deg)' : '';
+  });
+}
+accordion('toggleBTC', 'btcChartPanel', 'chevBTC', true);
+accordion('toggleXAU', 'xauChartPanel', 'chevXAU', false);
+accordion('histToggle', 'histPanel', 'chevHist', false);
+
+// ═══════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════
+renderTicker();
+renderAlerts();
+renderHistory();
+fetchAll();
+setInterval(fetchAll, 5000);
+loadCharts();
+</script>
+</body>
+</html>
